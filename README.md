@@ -63,10 +63,13 @@ cd BMO_local_qwen3.5_2B-KOKORO-82M
 
 ### 3. Télécharger les modèles
 ```bash
-# Modèle LLM
+# Modèle de raisonnement (LLM)
 ollama pull qwen3.5:2b
 
-# Modèles TTS Kokoro
+# Modèle de vision (pour la caméra)
+ollama pull moondream
+
+# Modèles TTS Kokoro (téléchargement direct)
 wget https://github.com/theodore-ganzh/kokoro-onnx/releases/download/v1.0/kokoro-v1.0.onnx
 wget https://github.com/theodore-ganzh/kokoro-onnx/releases/download/v1.0/voices-v1.0.bin
 ```

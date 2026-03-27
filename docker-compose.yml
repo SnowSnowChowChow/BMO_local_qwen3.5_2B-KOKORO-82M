@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  bmo-agent:
+    build: .
+    container_name: bmo-agent
+    privileged: true # Required for hardware access (Sound, Camera, GPIO)
+    network_mode: host # Allows access to Ollama running on host
+    devices:
+      - "/dev/snd:/dev/snd"
+      - "/dev/video0:/dev/video0"
+    volumes:
+      - .:/app
+    environment:
+      - DISPLAY=${DISPLAY}
+    restart: unless-stopped

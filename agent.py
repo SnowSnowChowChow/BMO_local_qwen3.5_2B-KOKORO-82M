@@ -42,6 +42,7 @@ import scipy.signal
 import openwakeword
 from openwakeword.model import Model
 import ollama 
+from kokoro_onnx import Kokoro
 
 # --- WEB SEARCH (Using your working import) ---
 from ddgs import DDGS 
@@ -60,9 +61,11 @@ WAKE_WORD_THRESHOLD = 0.5
 INPUT_DEVICE_NAME = None 
 
 DEFAULT_CONFIG = {
-    "text_model": "gemma3:1b",
+    "text_model": "qwen3.5:2b",
     "vision_model": "moondream",
-    "voice_model": "piper/en_GB-semaine-medium.onnx",
+    "voice_model": "kokoro-v1.0.onnx",
+    "voice_pack": "voices-v1.0.bin",
+    "voice_name": "ff_siwis",
     "chat_memory": True,
     "camera_rotation": 0,
     "system_prompt_extras": ""
@@ -193,6 +196,20 @@ class BotGUI:
                 print(f"[CRITICAL] Failed to load model: {e}")
         else:
             print(f"[CRITICAL] Model not found: {WAKE_WORD_MODEL}")
+
+        # --- KOKORO TTS INITIALIZATION ---
+        print("[INIT] Loading Kokoro TTS...", flush=True)
+        self.kokoro = None
+        try:
+            model_path = CURRENT_CONFIG.get("voice_model", "kokoro-v1.0.onnx")
+            voices_path = CURRENT_CONFIG.get("voice_pack", "voices-v1.0.bin")
+            if os.path.exists(model_path) and os.path.exists(voices_path):
+                self.kokoro = Kokoro(model_path, voices_path)
+                print("[INIT] Kokoro TTS Loaded.", flush=True)
+            else:
+                print(f"[ERROR] Kokoro files not found: {model_path} or {voices_path}", flush=True)
+        except Exception as e:
+            print(f"[ERROR] Failed to load Kokoro: {e}", flush=True)
 
         # GUI Setup
         self.background_label = tk.Label(master)
@@ -786,7 +803,8 @@ class BotGUI:
 
     def wait_for_tts(self):
         while self.tts_queue or self.tts_active.is_set():
-            if self.interrupted.is_set(): break
+            if self.interrupted.is_set(): 
+                break
             time.sleep(0.1)
 
     def _tts_worker(self):
@@ -799,67 +817,57 @@ class BotGUI:
             if text: 
                 self.speak(text)
                 self.tts_active.clear() 
-            else: time.sleep(0.05)
+            else: 
+                time.sleep(0.05)
 
     def speak(self, text):
         clean = re.sub(r"[^\w\s,.!?:-]", "", text)
         if not clean.strip(): return
         
-        print(f"[PIPER SPEAKING] '{clean}'", flush=True)
-        voice_model = CURRENT_CONFIG.get("voice_model", "piper/en_GB-semaine-medium.onnx")
+        print(f"[KOKORO SPEAKING] '{clean}'", flush=True)
+        
+        if not self.kokoro:
+            print("[ERROR] Kokoro not initialized. Skipping speech.", flush=True)
+            return
+
+        voice_name = CURRENT_CONFIG.get("voice_name", "ff_siwis")
         
         try:
-            self.current_audio_process = subprocess.Popen(
-                ["./piper/piper", "--model", voice_model, "--output-raw"], 
-                stdin=subprocess.PIPE, 
-                stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL
+            # Language detection (simple)
+            is_french = any(word in clean.lower() for word in ["bonjour", "est", "le", "la", "un", "une", "je", "tu", "vous", "nous"])
+            lang = "fr-fr" if is_french else "en-us"
+            
+            samples, sample_rate = self.kokoro.create(
+                clean, 
+                voice=voice_name, 
+                speed=1.0, 
+                lang=lang
             )
             
-            self.current_audio_process.stdin.write(clean.encode() + b'\n')
-            self.current_audio_process.stdin.close() 
-
-            try:
-                device_info = sd.query_devices(kind='output')
-                native_rate = int(device_info['default_samplerate'])
-            except:
-                native_rate = 48000 
-
-            PIPER_RATE = 22050
-            use_native_rate = False
+            # Update volume for animation
+            self.current_volume = np.max(np.abs(samples)) if len(samples) > 0 else 0
             
-            try:
-                sd.check_output_settings(device=None, samplerate=PIPER_RATE)
-            except:
-                use_native_rate = True
-
-            with sd.RawOutputStream(samplerate=native_rate if use_native_rate else PIPER_RATE, 
-                                    channels=1, dtype='int16', 
-                                    device=None, latency='low', blocksize=2048) as stream:
-                while True:
-                    if self.interrupted.is_set(): break
-                    data = self.current_audio_process.stdout.read(4096)
-                    if not data: break 
-                    
-                    audio_chunk = np.frombuffer(data, dtype=np.int16)
-                    if len(audio_chunk) > 0:
-                        self.current_volume = np.max(np.abs(audio_chunk))
-                        if use_native_rate:
-                            num_samples = int(len(audio_chunk) * (native_rate / PIPER_RATE))
-                            audio_chunk = scipy.signal.resample(audio_chunk, num_samples).astype(np.int16)
-                        stream.write(audio_chunk.tobytes())
-                    else:
-                        self.current_volume = 0
-                time.sleep(0.5) 
+            # Play audio
+            sd.play(samples, sample_rate)
+            
+            # Wait for audio to finish, but allow interruption
+            while sd.get_stream().active:
+                if self.interrupted.is_set():
+                    sd.stop()
+                    break
+                time.sleep(0.1)
+                
+            self.current_volume = 0
+            time.sleep(0.1) 
                     
         except Exception as e:
-            print(f"Audio Error: {e}")
+            print(f"Audio Error (Kokoro): {e}")
         finally:
-            self.current_volume = 0 
-            if self.current_audio_process:
-                if self.current_audio_process.stdout: self.current_audio_process.stdout.close()
-                if self.current_audio_process.poll() is None: self.current_audio_process.terminate()
-                self.current_audio_process = None
+            self.current_volume = 0
+            try:
+                sd.stop()
+            except:
+                pass
 
     def _run_thinking_sound_loop(self):
         time.sleep(0.5)

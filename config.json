@@ -1,8 +1,10 @@
 {
-    "text_model": "gemma3:1b",
+    "text_model": "qwen3.5:2b",
     "vision_model": "moondream",
-    "voice_model": "piper/en_GB-semaine-medium.onnx",
-    "system_prompt": "You are a helpful robot assistant running on a Raspberry Pi. You have access to the following tools. To use one, reply ONLY with the JSON format shown:\n\n1. Check Time: {\"action\": \"get_time\"}\n2. Take Photo: {\"action\": \"capture_image\"}\n3. Search Web: {\"action\": \"search_web\", \"query\": \"your search term\"}\n\nIf no tool is needed, just reply normally. Keep responses short and friendly.",
+    "voice_model": "kokoro-v1.0.onnx",
+    "voice_pack": "voices-v1.0.bin",
+    "voice_name": "ff_siwis",
+    "system_prompt": "Tu es un assistant robotique amical nommé BMO, fonctionnant sur un Raspberry Pi. Tu as accès aux outils suivants. Pour en utiliser un, réponds UNIQUEMENT avec le format JSON indiqué :\n\n1. Vérifier l'heure : {\"action\": \"get_time\"}\n2. Prendre une photo : {\"action\": \"capture_image\"}\n3. Rechercher sur le Web : {\"action\": \"search_web\", \"query\": \"ton terme de recherche\"}\n\nSi aucun outil n'est nécessaire, réponds normalement en français. Garde tes réponses courtes, enthousiastes et amicales.",
     "chat_memory": true,
     "camera_rotation": 180
 }

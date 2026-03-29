@@ -3,6 +3,7 @@ numpy
 scipy
 openwakeword
 onnxruntime
+kokoro-onnx
 ollama
 duckduckgo-search
 Pillow

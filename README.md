@@ -70,8 +70,8 @@ ollama pull qwen3.5:2b
 ollama pull moondream
 
 # Modèles TTS Kokoro (téléchargement direct)
-wget https://github.com/theodore-ganzh/kokoro-onnx/releases/download/v1.0/kokoro-v1.0.onnx
-wget https://github.com/theodore-ganzh/kokoro-onnx/releases/download/v1.0/voices-v1.0.bin
+wget https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/kokoro-v1.0.onnx
+wget https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/voices-v1.0.bin
 ```
 
 ### 4. Lancer l'agent
